@@ -28,6 +28,13 @@ export interface LayoutedDomain {
   entityBounds: Map<string, Bounds>;
   /** BPMN sequence flow id -> edge waypoints. */
   lineWaypoints: Map<string, Waypoint[]>;
+  /**
+   * Ids of the elements whose shape carries `isExpanded`. Irrelevant to the
+   * layout round trip — a sub-process this module reads back was expanded by
+   * definition — but it is the only place a foreign document says whether a
+   * sub-process is drawn open or collapsed, which the importer needs.
+   */
+  expanded: Set<string>;
 }
 
 /** The slice of the DI model that is read here. */
@@ -35,6 +42,7 @@ interface PlaneElement extends ModdleElement {
   bpmnElement?: ModdleElement;
   bounds?: { x?: number; y?: number; width?: number; height?: number };
   waypoint?: { x?: number; y?: number }[];
+  isExpanded?: boolean;
 }
 
 function num(value: number | undefined): number {
@@ -42,11 +50,23 @@ function num(value: number | undefined): number {
 }
 
 export async function bpmnXmlToDomain(xml: string): Promise<LayoutedDomain> {
+  const { rootElement } = await moddle().fromXML(xml);
+  return readLayout(rootElement);
+}
+
+/**
+ * The same read on an already-parsed document.
+ *
+ * Split out so a caller that has to look at the semantic model anyway — the
+ * importer — gets the geometry from the parse it already did instead of running
+ * the XML through moddle a second time.
+ */
+export function readLayout(definitions: ModdleElement): LayoutedDomain {
   const entityBounds = new Map<string, Bounds>();
   const lineWaypoints = new Map<string, Waypoint[]>();
+  const expanded = new Set<string>();
 
-  const { rootElement } = await moddle().fromXML(xml);
-  const diagrams = (rootElement.diagrams as ModdleElement[] | undefined) ?? [];
+  const diagrams = (definitions.diagrams as ModdleElement[] | undefined) ?? [];
 
   for (const diagram of diagrams) {
     const plane = diagram.plane as ModdleElement | undefined;
@@ -55,6 +75,8 @@ export async function bpmnXmlToDomain(xml: string): Promise<LayoutedDomain> {
     for (const element of planeElements) {
       const id = element.bpmnElement?.id;
       if (!id) continue;
+
+      if (element.isExpanded === true) expanded.add(id);
 
       const bounds = element.bounds;
       if (bounds) {
@@ -76,7 +98,7 @@ export async function bpmnXmlToDomain(xml: string): Promise<LayoutedDomain> {
     }
   }
 
-  return { entityBounds, lineWaypoints };
+  return { entityBounds, lineWaypoints, expanded };
 }
 
 /**

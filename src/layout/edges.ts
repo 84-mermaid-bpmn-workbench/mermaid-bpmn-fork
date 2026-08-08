@@ -339,28 +339,56 @@ function drawEdgeLabel(svg: SVGSVGElement, x: number, y: number, text: string, a
   svg.appendChild(captionText(text, x, LINE_LABEL_CLASS, LABEL_LINE_H, y, anchor));
 }
 
+// The point on a polyline a caption is hung off: a short way along the first
+// segment from the SOURCE end, never past that segment's midpoint (a short stub
+// keeps the caption near the source rather than sliding to the far box).
+// `horizontal` says that segment runs horizontal-ish, which decides which side the
+// caption is nudged onto.
+function lineLabelAnchor(points: Pt[]): { x: number; y: number; horizontal: boolean } {
+  const a = points[0];
+  const b = points[1] ?? { x: a.x + 1, y: a.y };
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const inset = Math.min(LINE_LABEL_INSET, len / 2);
+  return {
+    x: a.x + (dx / len) * inset,
+    y: a.y + (dy / len) * inset,
+    horizontal: Math.abs(dx) >= Math.abs(dy),
+  };
+}
+
 // Places a caption near the SOURCE end of a HAND-DRAWN polyline (a bridge or a
 // straight comment line — neither is an ELK edge, so ELK can't lay its label out).
 // It sits a short way along the first segment from the source, nudged clear of the
 // line: above a horizontal-ish run, to the right of a vertical-ish one.
 export function drawLineLabelNearSource(svg: SVGSVGElement, points: Pt[], text: string): void {
   if (points.length === 0) return;
-  const a = points[0];
-  const b = points[1] ?? { x: a.x + 1, y: a.y };
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const len = Math.hypot(dx, dy) || 1;
-  // In from the source, but never past the segment's midpoint (a short stub keeps
-  // the label near the source rather than sliding to the far box).
-  const inset = Math.min(LINE_LABEL_INSET, len / 2);
-  const ax = a.x + (dx / len) * inset;
-  const ay = a.y + (dy / len) * inset;
+  const { x, y, horizontal } = lineLabelAnchor(points);
   const half = captionHeight(text, LABEL_LINE_H) / 2;
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    drawEdgeLabel(svg, ax, ay - LINE_LABEL_GAP - half, text); // above the line
+  if (horizontal) {
+    drawEdgeLabel(svg, x, y - LINE_LABEL_GAP - half, text); // above the line
   } else {
-    drawEdgeLabel(svg, ax + LINE_LABEL_GAP, ay, text, 'start'); // beside the line
+    drawEdgeLabel(svg, x + LINE_LABEL_GAP, y, text, 'start'); // beside the line
   }
+}
+
+// The same placement, handed back as the box a laid-out edge's `labels` entry wants
+// (see drawEdges) instead of drawn: a layout that produces no label geometry of its
+// own can attach one to its edges and let the ordinary draw pass render it. `points`
+// are in the edge's own frame, and so is the returned box.
+export function lineLabelBox(
+  points: Pt[],
+  width: number,
+  height: number,
+): { x: number; y: number; width: number; height: number } | undefined {
+  if (points.length === 0) return undefined;
+  const { x, y, horizontal } = lineLabelAnchor(points);
+  // The box is the caption's full extent, so the centre the draw pass derives from
+  // it lands where drawLineLabelNearSource would have put the text.
+  return horizontal
+    ? { x: x - width / 2, y: y - LINE_LABEL_GAP - height, width, height }
+    : { x: x + LINE_LABEL_GAP, y: y - height / 2, width, height };
 }
 
 // Records every node's absolute box by threading the accumulated offset down the

@@ -28,12 +28,14 @@ import {
   type ConnStyle,
   type ManualEdge,
   type Markers,
+  LINE_LABEL_CLASS,
   collectAbsRects,
   createMarkers,
   drawEdgePolyline,
   drawEdges,
   drawLineLabelNearSource,
   drawStraightEdge,
+  lineLabelBox,
 } from './layout/edges.js';
 import {
   type AutoSideRecord,
@@ -279,6 +281,11 @@ async function drawAutoLayout(
       text: Boolean(flow.line.label),
       dataAssoc: annotation(flow.sourceId) || annotation(flow.targetId),
       messageFlow: flow.messageFlow,
+      // A leading `/` marks the source end, a trailing `/` the target end. Every
+      // edge here is a whole line drawn source → target (nothing is split into
+      // segments on this path), so both land directly.
+      slashStart: flow.line.slash === 'start' || flow.line.slash === 'both',
+      slashEnd: flow.line.slash === 'end' || flow.line.slash === 'both',
     });
   }
 
@@ -286,6 +293,27 @@ async function drawAutoLayout(
   // laid-out bounding box; the viewBox is grown to keep it visible.
   let overhangX = 0;
   let overhangY = 0;
+
+  // bpmn-auto-layout reports geometry for shapes and waypoints only, so a line's
+  // caption gets no box from it the way an ELK edge label does. It is placed here,
+  // near the source end of the route the layouter returned, and attached to the edge
+  // so the ordinary draw pass renders it. Every edge sits on the root in absolute
+  // coordinates (see buildRenderTree), so its box needs no further offset.
+  for (const edge of root.edges ?? []) {
+    const label = flowIds.get(edge.id)?.line.label;
+    const section = edge.sections?.[0];
+    if (!label || !section) continue;
+    const points = [section.startPoint, ...(section.bendPoints ?? []), section.endPoint];
+    const box = lineLabelBox(
+      points,
+      measureCaption(label, measure, LINE_LABEL_CLASS),
+      captionHeight(label, LABEL_LINE_H),
+    );
+    if (!box) continue;
+    edge.labels = [{ text: label, ...box }];
+    overhangX = Math.max(overhangX, box.x + box.width);
+    overhangY = Math.max(overhangY, box.y + box.height);
+  }
 
   // Coordinates below the root are parent-relative, so the absolute position
   // needed for the overhang is threaded down.

@@ -75,10 +75,12 @@
       .theme-toggle:hover {
         border-color: var(--faint);
       }
-      /* Download button + dropdown. The wrapper is pushed to the right with
-         margin-left:auto so the theme toggle sits next to it. */
-      .download {
+      /* Import + download sit at the right end of the header; the first of them
+         carries the margin-left:auto that pushes the group over. */
+      #import-open {
         margin-left: auto;
+      }
+      .download {
         align-self: center;
         position: relative;
       }
@@ -176,6 +178,98 @@
         font-size: 0.8rem;
         align-self: stretch;
       }
+      /* Import dialog */
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 20;
+      }
+      .modal-backdrop[hidden] {
+        display: none;
+      }
+      .modal {
+        width: min(30rem, calc(100vw - 2rem));
+        max-height: calc(100vh - 2rem);
+        overflow: auto;
+        padding: 1.25rem;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--bg);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+      }
+      .modal h2 {
+        margin: 0 0 0.75rem;
+        font-size: 1rem;
+      }
+      .dropzone {
+        border: 2px dashed var(--border);
+        border-radius: 8px;
+        background: var(--panel-bg);
+        padding: 1.5rem 1rem;
+        text-align: center;
+        font-size: 0.85rem;
+        color: var(--hint);
+      }
+      .dropzone.dragover {
+        border-color: var(--fg);
+        color: var(--fg);
+      }
+      .dropzone .file-name {
+        display: block;
+        margin-top: 0.5rem;
+        font-family: ui-monospace, monospace;
+        font-size: 0.8rem;
+        color: var(--fg);
+        overflow-wrap: anywhere;
+      }
+      .modal .field {
+        margin-top: 1rem;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .modal pre {
+        margin: 0.5rem 0 0;
+        padding: 0.6rem 0.75rem;
+        border: 1px solid var(--border-faint);
+        border-radius: 6px;
+        background: var(--panel-bg);
+        font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+        font-size: 0.8rem;
+        line-height: 1.5;
+        overflow-x: auto;
+      }
+      .modal .preview-label {
+        margin-top: 1rem;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--label);
+      }
+      .modal-actions {
+        margin-top: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.5rem;
+      }
+      .modal-actions .status {
+        margin-right: auto;
+        font-size: 0.8rem;
+        color: var(--hint);
+        overflow-wrap: anywhere;
+      }
+      .modal-actions .status.error {
+        color: var(--error);
+      }
+      .modal-actions .status[hidden] {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -184,6 +278,7 @@
       <a class="nav" href=".">[example gallery]</a>
       <a class="nav" href="https://github.com/derari/mermaid-bpmn#readme">[readme]</a>
       <span class="hint">Edit on the left — the diagram re-renders as you type.</span>
+      <button id="import-open" class="theme-toggle" type="button">Import</button>
       <div class="download">
         <button id="download-toggle" class="theme-toggle" type="button" aria-haspopup="true" aria-expanded="false">
           Download ▾
@@ -207,9 +302,38 @@
       </section>
     </main>
 
+    <div id="import-backdrop" class="modal-backdrop" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="import-title">
+        <h2 id="import-title">Import BPMN</h2>
+        <div id="dropzone" class="dropzone">
+          Drop a <code>.bpmn</code> file here
+          <div class="field" style="justify-content: center">
+            <button id="import-select" class="theme-toggle" type="button">Select file…</button>
+          </div>
+          <span id="import-file" class="file-name" hidden></span>
+          <input id="import-input" type="file" accept=".bpmn,.xml,application/xml,text/xml" hidden />
+        </div>
+        <label class="field">
+          <input id="import-braces" type="checkbox" />
+          Generate with curly braces
+        </label>
+        <label class="field">
+          <input id="import-sides" type="checkbox" />
+          Keep attachment side of boundary events
+        </label>
+        <div class="preview-label">Preview</div>
+        <pre id="import-preview"></pre>
+        <div class="modal-actions">
+          <span id="import-status" class="status" hidden></span>
+          <button id="import-cancel" class="theme-toggle" type="button">Cancel</button>
+          <button id="import-confirm" class="theme-toggle" type="button" disabled>Import</button>
+        </div>
+      </div>
+    </div>
+
     <script type="module">
       import mermaid from 'mermaid';
-      import bpmn, { registerIconPacks, getLastBpmnXml } from '../src/index.ts';
+      import bpmn, { registerIconPacks, getLastBpmnXml, importBpmnXml } from '../src/index.ts';
 
       mermaid.registerExternalDiagrams([bpmn]);
       // Icons: register the Iconify packs the `icon:` style prop can draw from.
@@ -255,138 +379,138 @@
       // A single diagram that exercises the currently-supported BPMN features.
       const EXAMPLE = String.raw`bpmn LR
 
-  # automatically links workflow steps without successors
-  auto-sequence
+# automatically links workflow steps without successors
+auto-sequence
 
-  # define re-usable styles
-  classDef bg-pool fill:#B098E7
-  classDef bg-lane fill:#ECECFF
-  classDef important fill:#FFE2D8
+# define re-usable styles
+classDef bg-pool fill:#B098E7
+classDef bg-lane fill:#ECECFF
+classDef important fill:#FFE2D8
 
-  # choose layout algorithm: 'elk' (default) or 'auto'
-  # layout auto
+# choose layout algorithm: 'elk' (default) or 'auto'
+# layout auto
 
-  # declare entities with
-  # [entity type] [id?] ["label"?] [:::style-class?]
-  pool P1 "Pool (Black Box)" :::bg-pool
+# declare entities with
+# [entity type] [id?] ["label"?] [:::style-class?]
+pool P1 "Pool (Black Box)" :::bg-pool
 
-  # for most entities, label defaults to id
-  pool Pool (White Box) :::bg-pool
-    lane Lane 1 :::bg-lane
-      message start s1 "Message\ Start Event"
+# for most entities, label defaults to id
+pool Pool (White Box) :::bg-pool
+  lane Lane 1 :::bg-lane
+    message start s1 "Message\ Start Event"
 
-      # use absolute lines to connect entities by id
-      P1 --> s1 "Message Flow"
-      d1 --- s1
+    # use absolute lines to connect entities by id
+    P1 --> s1 "Message Flow"
+    d1 --- s1
 
-      data object d1 "Data\ Object"
-      subprocess "Collapsed\ Subprocess"
-        # use relative lines to connect the current entity
-        --> P1
+    data object d1 "Data\ Object"
+    subprocess "Collapsed\ Subprocess"
+      # use relative lines to connect the current entity
+      --> P1
 
-      event gate "Event-based\ Gateway"
-        --> Receive Task
-        --> t1
+    event gate "Event-based\ Gateway"
+      --> Receive Task
+      --> t1
 
-      # steps without successor will be linked with auto-sequence
-      timer catch t1 "Timer\ Intermediate\ Event"
-      escalation "Escalation\ End Event"
-      receive task Receive Task
-        P1 -->
+    # steps without successor will be linked with auto-sequence
+    timer catch t1 "Timer\ Intermediate\ Event"
+    escalation "Escalation\ End Event"
+    receive task Receive Task
+      P1 -->
 
-      ad-hoc subprocess Ad-hoc Subprocess
-        auto-sequence off
-        # change layout direction
-        direction TB
-        # suppress label with ""
-        user task u1 ""
-        service task
-        timer boundary "Attached\ Intermediate\ Timer Event"
-          --> Manual Task
+    ad-hoc subprocess Ad-hoc Subprocess
+      auto-sequence off
+      # change layout direction
+      direction TB
+      # suppress label with ""
+      user task u1 ""
+      service task
+      timer non-interrupting boundary "Attached\ non-interrupting\ Intermediate\ Timer Event"
+        --> Manual Task
 
-      # use "|" to declare a multi-line label
-      link throw |
-          Link
+    # use "|" to declare a multi-line label
+    link throw |
+        Link
+        Intermediate
+        Event
+
+    manual task Manual Task
+    end End Event
+    data collection Collection
+      Manual Task -->
+
+  lane Lane 2 :::bg-lane
+    link catch "Link\ Intermediate\ Event"
+    parallel catch "Parallel Multiple\ Intermediate\ Event"
+    data store "Data\ Store"
+      --> Subprocess
+    subprocess Subprocess tb
+      # If you have complex layouts with changes of layout direction,
+      # the route and region keywords can help to improve the result.
+      # See the example gallery for usage
+      route depth:1
+      region lr
+        start "Start\ Event"
+        loop subprocess "Looped\ Subprocess"
+        end "End\ Event"
+
+      event subprocess Event Subprocess lr
+        conditional start "Conditional\ Start Event"
+        error e1 "Error End\ Event"
+
+      # style element by id
+      style e1 fill:#FFD8D8 stroke:#891A1A
+      # apply style classes by id
+      class Send Task important
+
+      # optional: use n/e/s/w to choose a side for boundary events
+      error boundary | e
+          Attached
           Intermediate
-          Event
+          Error Event
+        # style single elements directly
+        style stroke:#891A1A
+        --> sig-end
+          # lines can be styled, too
+          # stroke and fill accept any valid html/css color expression
+          style stroke:orange
+      --> x
 
-      manual task Manual Task
-      end End Event
-      data collection Collection
-        Manual Task -->
+   region
+    gate x
+      # you can override the icon of every entity
+      style icon:bpmn:service
+      # iconify image packs available in this editor:
+      # lucide, fa, fa-brands, mdi, nonicons, devicon
+      #
+      # style icon:lucide:banana
 
-    lane Lane 2 :::bg-lane
-      link catch "Link\ Intermediate\ Event"
-      parallel catch "Parallel Multiple\ Intermediate\ Event"
-      data store "Data\ Store"
-        --> Subprocess
-      subprocess Subprocess tb
-        # If you have complex layouts with changes of layout direction,
-        # the route and region keywords can help to improve the result.
-        # See the example gallery for usage
-        route depth:1
-        region lr
-          start "Start\ Event"
-          loop subprocess "Looped\ Subprocess"
-          end "End\ Event"
+      # default and labelled branches
+      /--> Call Activity
+      --> x2 "Condition"
 
-        event subprocess Event Subprocess lr
-          conditional start "Conditional\ Start Event"
-          error e1 "Error End\ Event"
+    signal end sig-end "Signal\ End Event"
+    call Call Activity
+    exclusive gate x2 "Exclusive\ Gateway"
+    parallel gate "Parallel\ Gateway"
+      --> pt
+      --> Send Task
+    comment Text Annotation
+      Group ---
 
-        # style element by id
-        style e1 fill:#FFD8D8 stroke:#891A1A
-        # apply style classes by id
-        class Send Task important
+    # dont like indentation? curly braces work, too
+    group Group {
+      parallel task pt |
+          Multi Instance
+          Task (Parallel)
+      send task Send Task
+      pt --> p2
+      Send Task --> p2
+    }
+    # "join" automatically detects the correct gate type
+    join p2
 
-        # optional: use n/e/s/w to choose a side for boundary events
-        error boundary | e
-            Attached
-            Intermediate
-            Error Event
-          # style single elements directly
-          style stroke:#891A1A
-          --> sig-end
-            # lines can be styled, too
-            # stroke and fill accept any valid html/css color expression
-            style stroke:orange
-        --> x
-
-     region
-      gate x
-        # you can override the icon of every entity
-        style icon:bpmn:service
-        # iconify image packs available in this editor:
-        # lucide, fa, fa-brands, mdi, nonicons, devicon
-        #
-        # style icon:lucide:banana
-
-        # default and labelled branches
-        /--> Call Activity
-        --> x2 "Condition"
-
-      signal end sig-end "Signal\ End Event"
-      call Call Activity
-      exclusive gate x2 "Exclusive\ Gateway"
-      parallel gate "Parallel\ Gateway"
-        --> pt
-        --> Send Task
-      comment Text Annotation
-        Group ---
-
-      # dont like indentation? curly braces work, too
-      group Group {
-        parallel task pt |
-            Multi Instance
-            Task (Parallel)
-        send task Send Task
-        pt --> p2
-        Send Task --> p2
-      }
-      # "join" automatically detects the correct gate type
-      join p2
-
-      message end "Message\ End Event"
+    message end "Message\ End Event"
 `;
 
       const source = document.getElementById('source');
@@ -560,6 +684,118 @@
       document.getElementById('download-bpmn').addEventListener('click', () => {
         openMenu(false);
         downloadBpmn();
+      });
+
+      // Import: a modal with a drop zone / file picker for a .bpmn file, and a
+      // switch for which block style the generated source should use. The preview
+      // shows the difference. Importing replaces the editor content with the
+      // source `importBpmnXml` writes for the document.
+      const importBackdrop = document.getElementById('import-backdrop');
+      const importOpen = document.getElementById('import-open');
+      const importCancel = document.getElementById('import-cancel');
+      const importConfirm = document.getElementById('import-confirm');
+      const importSelect = document.getElementById('import-select');
+      const importInput = document.getElementById('import-input');
+      const importBraces = document.getElementById('import-braces');
+      const importSides = document.getElementById('import-sides');
+      const importPreview = document.getElementById('import-preview');
+      const importFileName = document.getElementById('import-file');
+      const importStatus = document.getElementById('import-status');
+      const dropzone = document.getElementById('dropzone');
+
+      let importFile = null;
+
+      function setImportStatus(text, isError = false) {
+        importStatus.textContent = text;
+        importStatus.hidden = !text;
+        importStatus.classList.toggle('error', isError);
+      }
+
+      // A sample carrying both switches: nesting (the braces) and the trailing
+      // side on the attached event.
+      function updatePreview() {
+        const side = importSides.checked ? ' e' : '';
+        importPreview.textContent = importBraces.checked
+          ? `subprocess {\n  task {\n    timer boundary${side}\n  }\n}\n`
+          : `subprocess\n  task\n    timer boundary${side}\n`;
+      }
+      importBraces.addEventListener('change', updatePreview);
+      importSides.addEventListener('change', updatePreview);
+
+      function setImportFile(file) {
+        importFile = file || null;
+        importFileName.hidden = !importFile;
+        importFileName.textContent = importFile ? importFile.name : '';
+        importConfirm.disabled = !importFile;
+        setImportStatus('');
+      }
+
+      function openImport(open) {
+        importBackdrop.hidden = !open;
+        if (open) {
+          setImportFile(null);
+          importInput.value = '';
+          updatePreview();
+          dropzone.classList.remove('dragover');
+          importSelect.focus();
+        } else {
+          importOpen.focus();
+        }
+      }
+      importOpen.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openImport(true);
+      });
+      importCancel.addEventListener('click', () => openImport(false));
+      // Click on the backdrop itself (not the dialog) closes, as does Escape.
+      importBackdrop.addEventListener('click', (e) => {
+        if (e.target === importBackdrop) openImport(false);
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !importBackdrop.hidden) openImport(false);
+      });
+
+      importSelect.addEventListener('click', () => importInput.click());
+      importInput.addEventListener('change', () => setImportFile(importInput.files[0]));
+
+      // Drag & drop. dragover must be cancelled for the drop to fire at all; the
+      // dragleave guard ignores the events fired when moving over child elements.
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        dropzone.classList.add('dragover');
+      });
+      dropzone.addEventListener('dragleave', (e) => {
+        if (!dropzone.contains(e.relatedTarget)) dropzone.classList.remove('dragover');
+      });
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        setImportFile(e.dataTransfer.files[0]);
+      });
+
+      // The conversion is BPMN XML → domain model → source. It runs off the main
+      // bundle (importBpmnXml loads the BPMN meta model on demand), so the button
+      // stays disabled until it resolves and a failure is reported in the dialog
+      // rather than replacing what the user already has in the editor.
+      importConfirm.addEventListener('click', async () => {
+        if (!importFile) return;
+        const file = importFile;
+        importConfirm.disabled = true;
+        setImportStatus(`Reading ${file.name}…`);
+        try {
+          const text = await file.text();
+          const generated = await importBpmnXml(text, {
+            braces: importBraces.checked,
+            boundarySides: importSides.checked,
+          });
+          source.value = generated;
+          openImport(false);
+          render();
+        } catch (err) {
+          setImportStatus(`Could not import: ${err && err.message ? err.message : err}`, true);
+          importConfirm.disabled = false;
+        }
       });
 
       setTheme('light');

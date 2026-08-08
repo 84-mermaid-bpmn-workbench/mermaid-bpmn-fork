@@ -574,18 +574,28 @@ function readEventOperation(
       return { op: 'throw', next: i + 1 };
     case 'non-interrupt':
     case 'noninterrupt':
+    case 'non-interrupting':
+    case 'noninterrupting':
     case 'continue':
-      return { op: 'non-interrupt', next: i + 1 };
+      if (tokens[i + 1] === 'boundary') return {op: 'boundary-non-interrupt', next: i + 2};
+      return {op: 'non-interrupt', next: i + 1};
     case 'non':
       // the two-token spelling `non interrupt`
-      if (tokens[i + 1] === 'interrupt') return { op: 'non-interrupt', next: i + 2 };
-      return null;
+      if (tokens[i + 1] !== 'interrupt' && tokens[i + 1] !== 'interrupting') return null;
+      if (tokens[i + 2] === 'boundary') return {op: 'boundary-non-interrupt', next: i + 3};
+      return { op: 'non-interrupt', next: i + 2 };
+    case 'interrupt':
+    case 'interrupting':
+      if (tokens[i + 1] !== 'boundary') return null;
+      return { op: 'boundary', next: i + 2 };
     case 'boundary': {
       const n = tokens[i + 1];
-      if (n === 'non-interrupt' || n === 'noninterrupt' || n === 'continue')
+      if (n === 'non-interrupt' || n === 'noninterrupt' || n === 'non-interrupting' || n === 'noninterrupting' || n === 'continue')
         return { op: 'boundary-non-interrupt', next: i + 2 };
-      if (n === 'non' && tokens[i + 2] === 'interrupt')
+      if (n === 'non' && (tokens[i + 2] === 'interrupt' || tokens[i + 2] === 'interrupting'))
         return { op: 'boundary-non-interrupt', next: i + 3 };
+      if (n === 'interrupt' || n === 'interrupting')
+        return { op: 'boundary', next: i + 2 };
       return { op: 'boundary', next: i + 1 };
     }
     default:

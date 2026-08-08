@@ -24,4 +24,28 @@ export { registerIconPacks, type IconPack } from './icons.js';
 // wants to offer it as a download. Only `layout auto` produces one.
 export { getLastBpmnXml } from './lastBpmn.js';
 
+/**
+ * Read a BPMN 2.0 document and write it out as bpmn diagram source.
+ *
+ * The reverse of what the diagram does: the XML is parsed into the domain model
+ * (`bpmn-to-domain`) and that model written back as text (`domain-to-source`).
+ * `braces` picks the nesting style — `{ }` instead of indentation — and changes
+ * nothing else about the output. `boundarySides` keeps the edge each attached
+ * event was drawn on instead of leaving the renderer to derive one.
+ *
+ * Both halves are loaded on demand: reading BPMN needs the whole meta model, and
+ * a consumer who only ever renders diagrams should not pay for it.
+ */
+export async function importBpmnXml(
+  xml: string,
+  options: { braces?: boolean; boundarySides?: boolean } = {},
+): Promise<string> {
+  const [{ bpmnXmlToDomainModel }, { domainToSource }] = await Promise.all([
+    import('./bpmn-to-domain.js'),
+    import('./domain-to-source.js'),
+  ]);
+  const { entities, lines } = await bpmnXmlToDomainModel(xml);
+  return domainToSource(entities, lines, options);
+}
+
 export default bpmn;

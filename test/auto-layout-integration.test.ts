@@ -128,6 +128,11 @@ function edgePaths(): string[] {
     .map((e) => e.attrs.d);
 }
 
+/** The drawn default-sequence-flow ticks. */
+function slashMarks(): El[] {
+  return descendants().filter((e) => (e.attrs.class ?? '') === 'bpmn-edge-slash');
+}
+
 /** The drawn event circles (the outer ring of each event). */
 function circles(): { cx: number; cy: number; r: number }[] {
   return descendants()
@@ -257,6 +262,43 @@ describe('layout auto', () => {
     );
     expect(shapes()).toHaveLength(4);
     expect(edgePaths()).toHaveLength(4);
+  });
+
+  // bpmn-auto-layout reports no label geometry and knows nothing of the default
+  // marker, so both are placed by the draw pass rather than read back out of it.
+  it('draws a line caption', async () => {
+    await render('bpmn\n  layout auto\n  start s\n  task t\n  s --> t "label"');
+    expect(labels()).toContain('label');
+  });
+
+  it('places a line caption on the line, not on a shape', async () => {
+    await render('bpmn\n  layout auto\n  start s\n  task t\n  s --> t "label"');
+
+    const caption = descendants().find(
+      (e) => e.nodeName === 'text' && e.textContent === 'label' && e.attrs.x !== '-9999',
+    )!;
+    expect(caption).toBeDefined();
+    const x = Number(caption.attrs.x);
+    const y = Number(caption.attrs.y);
+    const { w, h } = viewBox();
+    expect(x).toBeGreaterThanOrEqual(0);
+    expect(y).toBeGreaterThanOrEqual(0);
+    expect(x).toBeLessThanOrEqual(w);
+    expect(y).toBeLessThanOrEqual(h);
+    // It sits between the two shapes, not inside either of them.
+    const [task] = shapes();
+    expect(x).toBeLessThan(task.x);
+  });
+
+  it('draws the default-branch tick on a default flow', async () => {
+    await render('bpmn\n  layout auto\n  gate g\n  task t\n  g /--> t "label"');
+    expect(slashMarks()).toHaveLength(1);
+    expect(labels()).toContain('label');
+  });
+
+  it('draws no tick on a plain flow', async () => {
+    await render('bpmn\n  layout auto\n  gate g\n  task t\n  g --> t');
+    expect(slashMarks()).toHaveLength(0);
   });
 
   it('is deterministic across renders', async () => {

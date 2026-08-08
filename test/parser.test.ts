@@ -527,6 +527,35 @@ describe('bpmn parser', () => {
       ]);
     });
 
+    it('accepts alternative -ing spellings of interrupt', () => {
+      parse(
+        'non interrupting n1',
+        'noninterrupting n2',
+        'non-interrupting n3',
+        'boundary non interrupting b1',
+        'boundary noninterrupting b2',
+        'boundary non-interrupting b3',
+        'non interrupting boundary b4',
+        'noninterrupting boundary b5',
+        'non-interrupting boundary b6',
+        'interrupting boundary b7',
+        'boundary interrupting b8',
+      );
+      expect(db.getEntities().map((e) => e.eventOperation)).toEqual([
+        'non-interrupt',
+        'non-interrupt',
+        'non-interrupt',
+        'boundary-non-interrupt',
+        'boundary-non-interrupt',
+        'boundary-non-interrupt',
+        'boundary-non-interrupt',
+        'boundary-non-interrupt',
+        'boundary-non-interrupt',
+        'boundary',
+        'boundary',
+      ]);
+    });
+
     it('treats termination/error/cancel/escalation as end events of that type', () => {
       parse('termination', 'error', 'cancel', 'escalation');
       expect(db.getEntities()).toEqual([
