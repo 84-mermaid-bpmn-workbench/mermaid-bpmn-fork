@@ -180,16 +180,18 @@ export function domainToSource(
     const open = braces && children.length > 0 ? ' {' : '';
     out.push(pad + declarationOf(entity, ids, boundarySides) + open);
     for (const child of children) emit(child, depth + 1);
-    if (out.at(-1) === '') out.pop();
     if (open) out.push(`${pad}}`);
     for (const line of linesFrom.get(entity) ?? []) out.push(pad + lineOf(line, ids));
-    out.push('');
   };
 
-  out.push('bpmn', '', `layout auto`, '');
-  for (const entity of entities.filter(emittable)) emit(entity, 0);
-  for (const line of trailing) out.push(lineOf(line, ids));
-  if (out.at(-1) === '') out.pop();
+  // The diagram root is a container like any other: the header opens its scope —
+  // with a `{` of its own in curly mode — so the `layout` directive and every
+  // top-level declaration sit one level in. The blank line after the directive is
+  // the only one written; declarations are never separated.
+  out.push(braces ? 'bpmn {' : 'bpmn', `${INDENT}layout auto`, '');
+  for (const entity of entities.filter(emittable)) emit(entity, 1);
+  for (const line of trailing) out.push(INDENT + lineOf(line, ids));
+  if (braces) out.push('}');
   return `${out.join('\n')}\n`;
 }
 
