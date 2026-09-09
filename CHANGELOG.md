@@ -4,7 +4,52 @@ All notable changes to `mermaid-bpmn` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-09-09
+
+The library now goes both ways: a second layout engine hands back the BPMN 2.0
+document it laid out, and a reader turns an existing BPMN file back into diagram
+source. Ports also opened up to every entity family.
+
+### Added
+
+- **`layout auto` — a second layout algorithm.** `layout <algorithm>` is a standalone
+  statement at the diagram root (not a token on the `bpmn` header line) and picks the
+  engine that positions the diagram: `elk`, the default, or `auto`. `auto` serializes
+  the diagram to BPMN 2.0, lets
+  [bpmn-auto-layout](https://github.com/bpmn-io/bpmn-auto-layout) position it, and
+  draws the result with the same shapes and styling as `elk`. It covers activities,
+  gateways and events (boundary events included), expanded sub-processes with their
+  contents, data objects and stores, comments, groups and regions, and pools and
+  lanes — pools become a BPMN **collaboration**, so a connection crossing a pool
+  border is a routed message flow rather than a straight line. Manual ports,
+  direction modifiers and the `route` controls stay ELK-only, a line that crosses a
+  sub-process border or touches a group, pool or lane is drawn straight, and because
+  bpmn-auto-layout sizes every shape from fixed constants a long caption is wrapped
+  and ellipsized instead of growing its box. Nested under anything but the root the
+  statement is dropped with a warning. See the README for the full list of what
+  `auto` handles.
+- **`getLastBpmnXml()`** — the layouted BPMN 2.0 document behind the last render,
+  exported for a host page that wants to offer it as a download. Only `layout auto`
+  produces one.
+- **`importBpmnXml(xml, options)`** — read a BPMN 2.0 document and write it out as
+  `bpmn` diagram source: the parser in reverse. The output is structure only, with
+  `layout auto` on the first line — no styling, `route` or `direction`, since BPMN
+  carries nothing this DSL could use. Relations BPMN and the DSL disagree about are
+  folded back: a participant's process is unpacked into its pool, a lane claims the
+  members it lists, a boundary event moves into the activity it guards, and a group
+  recovers its members from category references or the drawn boxes. `braces: true`
+  nests with `{ }` instead of indentation; `boundarySides: true` keeps the edge each
+  attached event was drawn on rather than letting the renderer derive one. Both
+  halves load on demand, so a consumer who only renders diagrams never pulls in the
+  meta model.
+- **Either order for a boundary event's interrupt marker.** `non-interrupt boundary`
+  now reads as a non-interrupting boundary event, the way `boundary non-interrupt`
+  already did, and the interrupting default can be spelled out with
+  `interrupt boundary` or `boundary interrupt`. The `-ing` forms — `interrupting`,
+  `non-interrupting` — are accepted wherever the short ones are.
+- **The examples editor gained an `Import BPMN` dialog** — a drop zone or file picker
+  for a `.bpmn` file, toggles for curly braces and boundary sides, and a preview of
+  the generated source — plus a **download as BPMN** action for the current diagram.
 
 ### Changed
 
@@ -29,6 +74,11 @@ All notable changes to `mermaid-bpmn` are documented here. The format follows
   around the whole diagram. The renderer now re-derives the side from the boxes ELK
   actually produced and lays out again. Explicit `route exit:`/`enter:` sides and
   author-declared ports are unaffected.
+- **Auto-sequencing no longer chains non-flow entities.** `auto-sequence` skipped data
+  elements and boundary events, but a comment, port, region, group, or error
+  diagnostic sitting in the container was wired into the implicit flow as if it were a
+  step. All of them are excluded now, both as a step of their own and as the
+  destination that counts as a node's outgoing line.
 
 ## [1.1.0] - 2026-07-30
 
@@ -107,5 +157,6 @@ and stores, regions, groups, text annotations, ports and boundary events, stylin
 classes and named styles, the bundled `bpmn` icon pack, and ELK-based layout with
 tunable cross-boundary routing.
 
+[1.2.0]: https://github.com/derari/mermaid-bpmn/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/derari/mermaid-bpmn/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/derari/mermaid-bpmn/releases/tag/v1.0.0
