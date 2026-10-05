@@ -289,6 +289,7 @@
           <li><button id="download-bpmn" type="button">BPMN</button></li>
         </ul>
       </div>
+      <button id="open-svg" class="theme-toggle" type="button">Open SVG</button>
       <button id="theme-toggle" class="theme-toggle" type="button">🌙 Dark</button>
     </header>
     <main>
@@ -628,6 +629,15 @@ pool Pool (White Box) :::bg-pool
         );
       }
 
+      function openSvgInNewTab() {
+        const markup = serializeSvg({});
+        if (!markup) return;
+        const url = URL.createObjectURL(
+          new Blob([markup], { type: 'image/svg+xml;charset=utf-8' }),
+        );
+        window.open(url, '_blank');
+      }
+
       // Rasterize the SVG onto a canvas. Icons are inlined as <path> elements, so
       // nothing taints the canvas and toBlob works. A 2× scale keeps text crisp,
       // and the background is filled with the theme colour since mermaid's SVG is
@@ -685,6 +695,7 @@ pool Pool (White Box) :::bg-pool
         openMenu(false);
         downloadBpmn();
       });
+      document.getElementById('open-svg').addEventListener('click', openSvgInNewTab);
 
       // Import: a modal with a drop zone / file picker for a .bpmn file, and a
       // switch for which block style the generated source should use. The preview
