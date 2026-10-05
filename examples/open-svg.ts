@@ -2,6 +2,19 @@ const OPEN_SVG_CACHE_NAME = 'mermaid-bpmn-open-svg';
 
 const openSvgWorkerReady = registerOpenSvgWorker();
 
+export function createOpenSvgClickHandler(
+  serializeSvg: (dims: Record<string, number>) => string | null,
+  output: HTMLElement,
+) {
+  return async function handleOpenSvgClick() {
+    try {
+      await openSvgInNewTab(serializeSvg({}));
+    } catch (error) {
+      output.innerHTML = `<div class="error">Could not open the SVG in a separate tab: ${String(error)}</div>`;
+    }
+  };
+}
+
 export async function openSvgInNewTab(markup: string | null) {
   if (!markup || !openSvgWorkerReady) return;
 
