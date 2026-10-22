@@ -611,11 +611,8 @@ pool Pool (White Box) :::bg-pool
         e.stopPropagation();
         openMenu(downloadMenu.hidden);
       });
-      // Click outside or Escape closes the menu.
+      // Click outside closes the menu; Escape is handled with the import dialog below.
       document.addEventListener('click', () => openMenu(false));
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') openMenu(false);
-      });
 
       function triggerDownload(blob, filename) {
         const url = URL.createObjectURL(blob);
@@ -762,7 +759,14 @@ pool Pool (White Box) :::bg-pool
         if (e.target === importBackdrop) openImport(false);
       });
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !importBackdrop.hidden) openImport(false);
+        if (e.key !== 'Escape') return;
+        if (!importBackdrop.hidden) {
+          openImport(false);
+        } else if (!downloadMenu.hidden) {
+          openMenu(false);
+        } else {
+          preview.fit();
+        }
       });
 
       importSelect.addEventListener('click', () => importInput.click());
