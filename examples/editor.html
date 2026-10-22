@@ -176,15 +176,23 @@
       }
       #output {
         flex: 1;
-        overflow: auto;
+        min-height: 0;
+        min-width: 0;
+        overflow: hidden;
         padding: 1rem;
         display: flex;
-        align-items: flex-start;
+        align-items: stretch;
         justify-content: center;
       }
-      #output svg {
-        max-width: 100%;
-        height: auto;
+      #output > svg {
+        display: block;
+        flex-shrink: 0;
+        overflow: hidden;
+      }
+      #output > .error {
+        flex: 1;
+        min-width: 0;
+        overflow: auto;
       }
       .error {
         color: var(--error);

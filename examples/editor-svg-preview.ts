@@ -30,6 +30,11 @@ export function createEditorSVGPreview(output: HTMLElement) {
       height = rect.height;
     }
     snapshot = { svg: cleanSVG, width, height };
+
+    // Size only the live viewport; exports retain Mermaid's original sizing.
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    svg.style.maxWidth = 'none';
     navigation.attach(svg);
   }
 
