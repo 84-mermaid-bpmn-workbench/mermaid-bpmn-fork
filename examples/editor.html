@@ -355,6 +355,7 @@
       import mermaid from 'mermaid';
       import bpmn, { registerIconPacks, getLastBpmnXml, importBpmnXml } from '../src/index.ts';
       import { initializeEditorPaneWidth } from './editor-pane-width.ts';
+      import { createEditorSVGPreview } from './editor-svg-preview.ts';
       import { createOpenSvgClickHandler } from './open-svg.ts';
 
       mermaid.registerExternalDiagrams([bpmn]);
@@ -537,6 +538,7 @@ pool Pool (White Box) :::bg-pool
 
       const source = document.getElementById('source');
       const output = document.getElementById('output');
+      const preview = createEditorSVGPreview(output);
       const main = document.querySelector('main');
       const paneWidthControls = document.querySelectorAll('[data-source-pane-width]');
 
@@ -552,9 +554,10 @@ pool Pool (White Box) :::bg-pool
         const id = `bpmn-editor-${seq++}`;
         try {
           const { svg } = await mermaid.render(id, source.value);
-          output.innerHTML = svg;
+          preview.show(svg);
           lastRenderOk = true;
         } catch (err) {
+          preview.clear();
           output.innerHTML = `<div class="error">${String(
             err && err.stack ? err.stack : err,
           )}</div>`;
@@ -586,7 +589,7 @@ pool Pool (White Box) :::bg-pool
       toggle.addEventListener('click', () => setTheme(theme === 'dark' ? 'light' : 'dark'));
 
       // Download: the button drops down to SVG / PNG / BPMN. SVG and PNG work off
-      // whatever SVG is currently in the output pane, so a diagram must be
+      // the clean copy of the current diagram, so a diagram must be
       // rendered first. BPMN comes from the layouter instead, and only the `auto`
       // layout produces one.
       const downloadToggle = document.getElementById('download-toggle');
@@ -616,40 +619,8 @@ pool Pool (White Box) :::bg-pool
         setTimeout(() => URL.revokeObjectURL(url), 0);
       }
 
-      // Returns a standalone clone of the rendered SVG with an explicit width/height
-      // (mermaid sizes via a max-width style, which a bare download/canvas ignores)
-      // and the xmlns declaration a detached file needs. Returns null if nothing is
-      // rendered yet. `dims` is filled with the pixel size for the caller.
-      function serializeSvg(dims) {
-        const svg = output.querySelector('svg');
-        if (!svg) return null;
-        const clone = svg.cloneNode(true);
-
-        // Work out intrinsic pixel size: prefer the viewBox, fall back to the
-        // rendered bounding box.
-        let width, height;
-        const vb = svg.viewBox && svg.viewBox.baseVal;
-        if (vb && vb.width && vb.height) {
-          width = vb.width;
-          height = vb.height;
-        } else {
-          const rect = svg.getBoundingClientRect();
-          width = rect.width;
-          height = rect.height;
-        }
-        clone.setAttribute('width', width);
-        clone.setAttribute('height', height);
-        clone.style.maxWidth = '';
-        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-        clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
-
-        dims.width = width;
-        dims.height = height;
-        return new XMLSerializer().serializeToString(clone);
-      }
-
       function downloadSvg() {
-        const markup = serializeSvg({});
+        const markup = preview.serialize({});
         if (!markup) return;
         triggerDownload(
           new Blob([markup], { type: 'image/svg+xml;charset=utf-8' }),
@@ -663,7 +634,7 @@ pool Pool (White Box) :::bg-pool
       // transparent.
       function downloadPng() {
         const dims = {};
-        const markup = serializeSvg(dims);
+        const markup = preview.serialize(dims);
         if (!markup) return;
         const scale = 2;
         const img = new Image();
@@ -685,6 +656,7 @@ pool Pool (White Box) :::bg-pool
         };
         img.onerror = () => {
           URL.revokeObjectURL(svgUrl);
+          preview.clear();
           output.innerHTML = `<div class="error">Could not rasterize the diagram to PNG.</div>`;
         };
         img.src = svgUrl;
@@ -714,7 +686,7 @@ pool Pool (White Box) :::bg-pool
         openMenu(false);
         downloadBpmn();
       });
-      document.getElementById('open-svg').addEventListener('click', createOpenSvgClickHandler(serializeSvg, output));
+      document.getElementById('open-svg').addEventListener('click', createOpenSvgClickHandler(preview.serialize, output, preview.clear));
 
       // Import: a modal with a drop zone / file picker for a .bpmn file, and a
       // switch for which block style the generated source should use. The preview

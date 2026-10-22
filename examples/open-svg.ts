@@ -5,11 +5,13 @@ const openSvgWorkerReady = registerOpenSvgWorker();
 export function createOpenSvgClickHandler(
   serializeSvg: (dims: Record<string, number>) => string | null,
   output: HTMLElement,
+  beforeReplaceOutput: () => void,
 ) {
   return async function handleOpenSvgClick() {
     try {
       await openSvgInNewTab(serializeSvg({}));
     } catch (error) {
+      beforeReplaceOutput();
       output.innerHTML = `<div class="error">Could not open the SVG in a separate tab: ${String(error)}</div>`;
     }
   };
