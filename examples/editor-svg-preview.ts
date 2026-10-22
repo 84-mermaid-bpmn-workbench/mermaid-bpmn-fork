@@ -1,4 +1,5 @@
 import { createEditorSVGNavigation } from './editor-svg-navigation';
+import { createEditorSVGControls } from './editor-svg-controls';
 
 type TSVGSnapshot = {
   svg: SVGSVGElement;
@@ -7,7 +8,12 @@ type TSVGSnapshot = {
 };
 
 export function createEditorSVGPreview(output: HTMLElement) {
-  const navigation = createEditorSVGNavigation(output);
+  const navigation = createEditorSVGNavigation(output, (ratio) => controls.setZoom(ratio));
+  const controls = createEditorSVGControls({
+    zoom_out: navigation.zoomOut,
+    reset: navigation.reset,
+    zoom_in: navigation.zoomIn,
+  });
   let snapshot: TSVGSnapshot | null = null;
 
   function show(markup: string) {
@@ -36,12 +42,22 @@ export function createEditorSVGPreview(output: HTMLElement) {
     svg.style.height = '100%';
     svg.style.maxWidth = 'none';
     navigation.attach(svg);
+    output.append(controls.element);
   }
 
   function clear() {
+    controls.closeHelp();
     navigation.detach();
     snapshot = null;
     output.replaceChildren();
+  }
+
+  function handleEscape() {
+    if (controls.isHelpOpen()) {
+      controls.closeHelp();
+    } else {
+      navigation.fit();
+    }
   }
 
   // All export paths use the clean snapshot, with intrinsic dimensions when
@@ -62,5 +78,5 @@ export function createEditorSVGPreview(output: HTMLElement) {
     return new XMLSerializer().serializeToString(clone);
   }
 
-  return { show, clear, serialize, fit: navigation.fit };
+  return { show, clear, serialize, fit: navigation.fit, handleEscape };
 }

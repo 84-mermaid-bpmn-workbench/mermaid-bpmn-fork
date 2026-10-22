@@ -175,6 +175,7 @@
         outline: none;
       }
       #output {
+        position: relative;
         flex: 1;
         min-height: 0;
         min-width: 0;
@@ -765,7 +766,7 @@ pool Pool (White Box) :::bg-pool
         } else if (!downloadMenu.hidden) {
           openMenu(false);
         } else {
-          preview.fit();
+          preview.handleEscape();
         }
       });
 
