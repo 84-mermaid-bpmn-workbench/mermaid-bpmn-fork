@@ -376,6 +376,7 @@
       import bpmn, { registerIconPacks, getLastBpmnXml, importBpmnXml } from '../src/index.ts';
       import { initializeEditorPaneWidth } from './editor-pane-width.ts';
       import { initializeEditorSourceFontSize } from './editor-source-font-size.ts';
+      import { readEditorState, writeEditorState } from './editor-state.ts';
       import { createEditorSVGPreview } from './editor-svg-preview.ts';
       import { createOpenSvgClickHandler } from './open-svg.ts';
 
@@ -568,7 +569,7 @@ pool Pool (White Box) :::bg-pool
         initializeEditorPaneWidth(main, paneWidthControls);
       }
 
-      source.value = EXAMPLE;
+      source.value = readEditorState('source') || EXAMPLE;
 
       let seq = 0;
       let lastRenderOk = false;
@@ -592,6 +593,7 @@ pool Pool (White Box) :::bg-pool
       // Debounce so we render once the user pauses typing, not on every keystroke.
       let timer;
       source.addEventListener('input', () => {
+        writeEditorState('source', source.value);
         clearTimeout(timer);
         timer = setTimeout(render, 250);
       });
@@ -818,6 +820,7 @@ pool Pool (White Box) :::bg-pool
             boundarySides: importSides.checked,
           });
           source.value = generated;
+          writeEditorState('source', source.value);
           openImport(false);
           render();
         } catch (err) {

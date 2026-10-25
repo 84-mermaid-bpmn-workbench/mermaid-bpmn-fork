@@ -1,3 +1,5 @@
+import { readEditorState, writeEditorState } from './editor-state';
+
 const SOURCE_FONT_SIZES = [0.6, 0.725, 0.85, 0.975, 1.1];
 const DEFAULT_SOURCE_FONT_SIZE_INDEX = 2;
 
@@ -12,10 +14,14 @@ export function initializeEditorSourceFontSize(source: HTMLTextAreaElement) {
     source.style.fontSize = `${SOURCE_FONT_SIZES[sourceFontSizeIndex]}rem`;
     sourceFontDecrease.disabled = sourceFontSizeIndex === 0;
     sourceFontIncrease.disabled = sourceFontSizeIndex === SOURCE_FONT_SIZES.length - 1;
+    writeEditorState('font-size', source.style.fontSize);
   }
 
   sourceFontDecrease.addEventListener('click', () => setSourceFontSize(sourceFontSizeIndex - 1));
   sourceFontIncrease.addEventListener('click', () => setSourceFontSize(sourceFontSizeIndex + 1));
   sourceFontReset.addEventListener('click', () => setSourceFontSize(DEFAULT_SOURCE_FONT_SIZE_INDEX));
-  setSourceFontSize(DEFAULT_SOURCE_FONT_SIZE_INDEX);
+  const savedFontSize = readEditorState('font-size');
+  const savedFontSizeIndex = SOURCE_FONT_SIZES.findIndex((size) => `${size}rem` === savedFontSize);
+  const initialFontSizeIndex = savedFontSizeIndex < 0 ? DEFAULT_SOURCE_FONT_SIZE_INDEX : savedFontSizeIndex;
+  setSourceFontSize(initialFontSizeIndex);
 }
