@@ -153,7 +153,7 @@
         border-left: 1px solid var(--border);
       }
       .pane > .label {
-        font-size: 0.75rem;
+        font-size: 0.875rem;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         color: var(--label);
@@ -295,6 +295,7 @@
         display: none;
       }
     </style>
+    <link rel="stylesheet" href="./editor-source-font-size.css" />
   </head>
   <body>
     <header>
@@ -322,7 +323,16 @@
     </header>
     <main>
       <section class="pane">
-        <div class="label">BPMN source</div>
+        <div class="label source-label">
+          <span>BPMN source</span>
+          <div class="source-font-controls" role="group" aria-label="Source font size">
+            <button id="source-font-decrease" type="button" title="Decrease source font size" aria-label="Decrease source font size">A−</button>
+            <button id="source-font-increase" type="button" title="Increase source font size" aria-label="Increase source font size">A+</button>
+            <button id="source-font-reset" type="button" title="Reset source font size to default" aria-label="Reset source font size to default">
+              <span class="reset-icon" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
         <textarea id="source" spellcheck="false" wrap="off"></textarea>
       </section>
       <section class="pane">
@@ -364,6 +374,7 @@
       import mermaid from 'mermaid';
       import bpmn, { registerIconPacks, getLastBpmnXml, importBpmnXml } from '../src/index.ts';
       import { initializeEditorPaneWidth } from './editor-pane-width.ts';
+      import { initializeEditorSourceFontSize } from './editor-source-font-size.ts';
       import { createEditorSVGPreview } from './editor-svg-preview.ts';
       import { createOpenSvgClickHandler } from './open-svg.ts';
 
@@ -546,6 +557,7 @@ pool Pool (White Box) :::bg-pool
 `;
 
       const source = document.getElementById('source');
+      initializeEditorSourceFontSize(source);
       const output = document.getElementById('output');
       const preview = createEditorSVGPreview(output);
       const main = document.querySelector('main');
