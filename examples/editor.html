@@ -326,6 +326,9 @@
       <section class="pane">
         <div class="label source-label">
           <span>BPMN source</span>
+          <button id="source-clear" class="source-clear" type="button" title="Clear source" aria-label="Clear source">
+            <span class="clear-icon" aria-hidden="true"></span>
+          </button>
           <div class="source-font-controls" role="group" aria-label="Source font size">
             <button id="source-font-decrease" type="button" title="Decrease source font size" aria-label="Decrease source font size">A−</button>
             <button id="source-font-increase" type="button" title="Increase source font size" aria-label="Increase source font size">A+</button>
@@ -376,7 +379,7 @@
       import bpmn, { registerIconPacks, getLastBpmnXml, importBpmnXml } from '../src/index.ts';
       import { initializeEditorPaneWidth } from './editor-pane-width.ts';
       import { initializeEditorSourceFontSize } from './editor-source-font-size.ts';
-      import { readEditorState, writeEditorState } from './editor-state.ts';
+      import { initializeEditorSourceContent } from './editor-source-content.ts';
       import { createEditorSVGPreview } from './editor-svg-preview.ts';
       import { createOpenSvgClickHandler } from './open-svg.ts';
 
@@ -569,14 +572,14 @@ pool Pool (White Box) :::bg-pool
         initializeEditorPaneWidth(main, paneWidthControls);
       }
 
-      source.value = readEditorState('source') || EXAMPLE;
+      const sourceContent = initializeEditorSourceContent(source, EXAMPLE, render, preview.clear);
 
       let seq = 0;
       let lastRenderOk = false;
-      async function render() {
+      async function render(content) {
         const id = `bpmn-editor-${seq++}`;
         try {
-          const { svg } = await mermaid.render(id, source.value);
+          const { svg } = await mermaid.render(id, content);
           preview.show(svg);
           lastRenderOk = true;
         } catch (err) {
@@ -590,14 +593,6 @@ pool Pool (White Box) :::bg-pool
         }
       }
 
-      // Debounce so we render once the user pauses typing, not on every keystroke.
-      let timer;
-      source.addEventListener('input', () => {
-        writeEditorState('source', source.value);
-        clearTimeout(timer);
-        timer = setTimeout(render, 250);
-      });
-
       // Theme: light is the default, regardless of the OS setting. The toggle flips
       // the page chrome (html[data-theme]) and mermaid's theme variables, then
       // re-renders. Dark ≡ `style stroke:#eee tint:black shade:white`.
@@ -608,7 +603,7 @@ pool Pool (White Box) :::bg-pool
         document.documentElement.dataset.theme = mode;
         toggle.textContent = mode === 'dark' ? '☀ Light' : '🌙 Dark';
         initTheme(mode);
-        render();
+        sourceContent.refresh();
       }
       toggle.addEventListener('click', () => setTheme(theme === 'dark' ? 'light' : 'dark'));
 
@@ -819,10 +814,8 @@ pool Pool (White Box) :::bg-pool
             braces: importBraces.checked,
             boundarySides: importSides.checked,
           });
-          source.value = generated;
-          writeEditorState('source', source.value);
           openImport(false);
-          render();
+          sourceContent.setContent(generated);
         } catch (err) {
           setImportStatus(`Could not import: ${err && err.message ? err.message : err}`, true);
           importConfirm.disabled = false;
