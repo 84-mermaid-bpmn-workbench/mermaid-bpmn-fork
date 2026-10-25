@@ -317,10 +317,6 @@
       </div>
       <button id="open-svg" class="theme-toggle" type="button">Open SVG</button>
       <button id="theme-toggle" class="theme-toggle" type="button">🌙 Dark</button>
-      <div class="pane-width" aria-label="Source pane width" role="group">
-        <button class="theme-toggle" type="button" data-source-pane-width="50%" aria-pressed="false">50%</button>
-        <button class="theme-toggle" type="button" data-source-pane-width="30%" aria-pressed="true">30%</button>
-      </div>
     </header>
     <main>
       <section class="pane">
@@ -335,6 +331,10 @@
             <button id="source-font-reset" type="button" title="Reset source font size to default" aria-label="Reset source font size to default">
               <span class="reset-icon" aria-hidden="true"></span>
             </button>
+          </div>
+          <div class="pane-width" aria-label="Source pane width" role="group">
+            <button class="theme-toggle" type="button" data-source-pane-width="50%" aria-pressed="false">50%</button>
+            <button class="theme-toggle" type="button" data-source-pane-width="30%" aria-pressed="true">30%</button>
           </div>
         </div>
         <textarea id="source" spellcheck="false" wrap="off"></textarea>
